@@ -30,7 +30,7 @@ def api_handler(data):
     return {"status": 404, "error": "Not Found"}
 
 server.set_callback(api_handler)
-server.start()
+server.start()  # 默认非阻塞启动
 ```
 
 ## 配置参数
@@ -157,7 +157,8 @@ server.set_callback(handle_api)
 
 if __name__ == "__main__":
     print("🚀 启动API服务器...")
-    if server.start():
+    # 阻塞启动（程序会一直运行直到手动停止）
+    if server.start(block=True):
         print(f"✅ 服务器运行在 http://localhost:{server.port}")
         print(f"📊 Debug面板: http://localhost:{server.port}/_debug")
         print(f"📖 API文档: http://localhost:{server.port}/docs")
@@ -224,7 +225,7 @@ def handle(data):
     return {"user_id": user_id, "post_id": post_id}
 ```
 
-### 路由级缓存和限流
+### 路由级缓存、限流和授权
 ```python
 # 启用缓存
 server.append("GET", "/api/data", cache=True)
@@ -232,6 +233,60 @@ server.append("GET", "/api/data", cache=True)
 # 自定义限流
 server.append("POST", "/api/upload", 
               ratelimit={"max": 5, "window": 60})  # 每分钟5次
+
+# 启用授权验证
+server.append("POST", "/api/admin/users", auth=True)
+server.append("DELETE", "/api/admin/delete", auth=True)
+```
+
+### 授权验证
+在注册路由时启用授权，然后在回调函数中处理授权逻辑：
+
+```python
+# 注册需要授权的路由
+server.append("GET", "/api/profile", auth=True, name="获取用户资料")
+server.append("POST", "/api/admin/settings", auth=True, name="管理员设置")
+
+def api_handler(data):
+    # 检查是否需要授权
+    if data.get('route_info', {}).get('auth'):
+        # 获取授权头
+        auth_header = data.get('headers', {}).get('authorization')
+        
+        if not auth_header:
+            return {"status": 401, "error": "未提供授权信息"}
+        
+        # 验证token（示例）
+        token = auth_header.replace('Bearer ', '')
+        if not verify_token(token):
+            return {"status": 403, "error": "授权验证失败"}
+        
+        # 授权成功，可以从token中提取用户信息
+        user_id = extract_user_from_token(token)
+        data['user_id'] = user_id  # 添加用户信息到请求数据
+    
+    # 处理业务逻辑
+    if data['path'] == '/api/profile':
+        return get_user_profile(data.get('user_id'))
+    elif data['path'] == '/api/admin/settings':
+        if not is_admin(data.get('user_id')):
+            return {"status": 403, "error": "需要管理员权限"}
+        return update_admin_settings(data['body'])
+    
+    return {"status": 404, "error": "接口不存在"}
+
+def verify_token(token):
+    # 实现token验证逻辑
+    # 例如：JWT验证、数据库查询等
+    return token == "valid_token_example"
+
+def extract_user_from_token(token):
+    # 从token提取用户ID
+    return "user_123"
+
+def is_admin(user_id):
+    # 检查用户是否为管理员
+    return user_id in ["admin_user_1", "admin_user_2"]
 ```
 
 ### 文件上传
@@ -246,6 +301,83 @@ def handle(data):
         return {"message": f"上传了{len(files)}个文件"}
 ```
 
+## 服务器启动方式
+
+Manager_API 支持两种启动方式：
+
+### 非阻塞启动（默认）
+```python
+# 非阻塞启动，服务器在后台运行，主线程继续执行
+server.start()  # 等同于 server.start(block=False)
+
+# 适用场景：
+# - 集成到其他应用中
+# - 需要在同一程序中运行多个服务
+# - 测试环境或开发调试
+```
+
+### 阻塞启动
+```python
+# 阻塞启动，程序会一直运行直到手动停止
+server.start(block=True)
+
+# 适用场景：
+# - 生产环境部署
+# - 独立运行的API服务
+# - 需要程序持续运行的情况
+```
+
+### 完整启动示例
+```python
+import time
+from Manager_API import FastAPIServer
+
+server = FastAPIServer()
+server.host = '0.0.0.0'
+server.port = 8000
+server.debug = True
+
+# 注册路由
+server.append("GET", "/api/test")
+
+def api_handler(data):
+    return {"message": "Hello World"}
+
+server.set_callback(api_handler)
+
+# 选择启动方式
+if __name__ == "__main__":
+    print("选择启动方式:")
+    print("1. 阻塞启动 (推荐)")
+    print("2. 非阻塞启动")
+    
+    choice = input("请输入选择 (1/2): ")
+    
+    if choice == "1":
+        # 阻塞启动
+        print("🚀 阻塞启动服务器...")
+        if server.start(block=True):
+            print(f"✅ 服务器运行在 http://localhost:{server.port}")
+            print(f"📊 Debug面板: http://localhost:{server.port}/_debug")
+        else:
+            print("❌ 服务器启动失败")
+    else:
+        # 非阻塞启动（默认）
+        print("🚀 非阻塞启动服务器...")
+        if server.start():  # 默认就是非阻塞，可以省略 block=False
+            print(f"✅ 服务器已在后台启动: http://localhost:{server.port}")
+            print("📝 主线程继续运行，可以执行其他任务")
+            
+            # 主线程可以继续执行其他代码
+            for i in range(60):
+                print(f"⏰ 服务器运行中... {i+1}s")
+                time.sleep(1)
+            
+            print("🛑 程序结束，服务器将自动停止")
+        else:
+            print("❌ 服务器启动失败")
+```
+
 ## 生产环境配置
 
 ```python
@@ -257,6 +389,9 @@ server.max_concurrent = 2000     # 根据服务器调整
 server.enable_cache = True       # 启用缓存提升性能
 server.enable_ratelimit = True   # 防止滥用
 server.cors = ["https://yourdomain.com"]  # 限制跨域源
+
+# 生产环境推荐使用阻塞启动
+server.start(block=True)  # 明确指定阻塞启动
 ```
 
 ## 依赖安装

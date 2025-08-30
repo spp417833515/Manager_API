@@ -965,42 +965,169 @@ class MonitorSystem:
                     }}
                 }}
                 
-                /* Dark mode styles - Light theme style */
+                /* Dark mode styles - True dark theme */
                 body.dark {{
-                    --bg-dark: #ffffff;
-                    --bg-white: #f8f9fa;
-                    --bg-light: #ffffff;
-                    --text-primary: #212529;
-                    --text-secondary: #495057;
-                    --text-muted: #6c757d;
-                    --accent-primary: #0056b3;
-                    --accent-secondary: #17a2b8;
+                    --bg-dark: #0d1117;
+                    --bg-white: #161b22;
+                    --bg-light: #1a1d23;
+                    --text-primary: #c9d1d9;
+                    --text-secondary: #8b949e;
+                    --text-muted: #6e7681;
+                    --accent-primary: #58a6ff;
+                    --accent-secondary: #39d353;
+                    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                    --card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                    --border-radius: 12px;
+                }}
+                
+                body.dark .header {{
+                    background: var(--bg-white);
+                    border-bottom: 1px solid #30363d;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                }}
+                
+                body.dark .tabs {{
+                    background: var(--bg-white);
+                    border: 1px solid #30363d;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                }}
+                
+                body.dark .tab {{
+                    color: var(--text-secondary);
+                    border: 1px solid transparent;
+                }}
+                
+                body.dark .tab:hover {{
+                    background: #21262d;
+                    color: var(--text-primary);
+                    border: 1px solid #30363d;
+                }}
+                
+                body.dark .tab.active {{
+                    background: var(--accent-primary);
+                    color: #ffffff;
+                    border: 1px solid var(--accent-primary);
+                    box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
                 }}
                 
                 body.dark .card {{
-                    border-color: #dee2e6;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                    background: var(--bg-white);
+                    border: 1px solid #30363d;
+                    box-shadow: var(--card-shadow);
+                }}
+                
+                body.dark .card:hover {{
+                    box-shadow: var(--card-hover-shadow);
+                    border-color: var(--accent-primary);
+                }}
+                
+                body.dark .card h2 {{
+                    color: var(--text-primary);
+                    border-bottom: 2px solid var(--accent-primary);
+                }}
+                
+                body.dark .stat {{
+                    border-bottom: 1px solid #30363d;
                 }}
                 
                 body.dark .stat:hover {{
-                    background: #e9ecef;
+                    background: #21262d;
+                }}
+                
+                body.dark .label {{
+                    color: var(--text-secondary);
+                }}
+                
+                body.dark .value {{
+                    color: var(--text-primary);
+                }}
+                
+                body.dark .route-group {{
+                    background: var(--bg-white);
+                    border: 1px solid #30363d;
+                    box-shadow: var(--card-shadow);
+                }}
+                
+                body.dark .route-item {{
+                    background: var(--bg-light);
+                    border: 1px solid #30363d;
                 }}
                 
                 body.dark .route-item:hover {{
-                    background: #f8f9fa;
+                    background: #21262d;
+                    border-color: var(--accent-primary);
+                }}
+                
+                body.dark .request-monitor {{
+                    background: var(--bg-white);
+                    border: 1px solid #30363d;
+                    box-shadow: var(--card-shadow);
                 }}
                 
                 body.dark .bubble-container {{
-                    background: #ffffff;
+                    background: var(--bg-light);
                 }}
                 
                 body.dark .request-bubble {{
-                    background: #ffffff;
-                    border: 1px solid #dee2e6;
+                    background: var(--bg-white);
+                    color: var(--text-primary);
+                    border: 1px solid #30363d;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                }}
+                
+                body.dark .request-bubble:hover {{
+                    border-color: var(--accent-primary);
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+                }}
+                
+                body.dark .bubble-path {{
+                    color: var(--text-primary);
+                }}
+                
+                body.dark .modal-content {{
+                    background: var(--bg-white);
+                    border: 2px solid var(--accent-primary);
+                    box-shadow: 0 0 30px rgba(88, 166, 255, 0.3);
+                }}
+                
+                body.dark .modal-close:hover {{
+                    background: var(--bg-light);
+                    color: var(--text-primary);
                 }}
                 
                 body.dark .error-item {{
-                    background: linear-gradient(135deg, #fff5f5 0%, #fee 100%);
+                    background: linear-gradient(135deg, #2d1b1b 0%, #3d1a1a 100%);
+                    border-left: 5px solid #f85149;
+                }}
+                
+                body.dark .error-details {{
+                    background: rgba(0, 0, 0, 0.3);
+                    color: #ffa198;
+                }}
+                
+                body.dark .empty-state {{
+                    color: var(--text-muted);
+                }}
+                
+                body.dark .empty-state h3 {{
+                    color: var(--text-secondary);
+                }}
+                
+                body.dark .theme-toggle {{
+                    background: var(--bg-white);
+                    border: 1px solid var(--accent-primary);
+                    color: var(--accent-primary);
+                }}
+                
+                body.dark .theme-toggle:hover {{
+                    background: var(--accent-primary);
+                    color: #ffffff;
+                }}
+                
+                body.dark .debug-badge {{
+                    background: linear-gradient(135deg, var(--accent-primary) 0%, #1f6feb 100%);
+                    box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
+                    border: 1px solid var(--accent-primary);
                 }}
             </style>
             <script>
@@ -1019,6 +1146,27 @@ class MonitorSystem:
                         clearLog: '清空日志',
                         noRequests: '还没有请求',
                         requestsWillAppear: '请求到达时将显示在这里',
+                        serverStats: '服务器统计',
+                        cacheStatus: '缓存状态',
+                        systemInfo: '系统信息',
+                        requestLimits: '请求限制',
+                        runtime: '运行时间',
+                        totalRequests: '总请求数',
+                        activeRequests: '活跃请求',
+                        errorCount: '错误数',
+                        avgResponseTime: '平均响应时间',
+                        enabled: '已启用',
+                        size: '大小',
+                        hitRate: '命中率',
+                        hits: '命中',
+                        misses: '未命中',
+                        cpuUsage: 'CPU使用率',
+                        memoryUsage: '内存使用率',
+                        diskUsage: '磁盘使用率',
+                        pythonVersion: 'Python版本',
+                        timeWindow: '时间窗口',
+                        maxRequests: '最大请求数',
+                        blocked: '被阻止',
                         requestDetails: '请求详情',
                         processing: '请求正在处理中...',
                         responseTime: '响应时间',
@@ -1062,6 +1210,27 @@ class MonitorSystem:
                         clearLog: 'Clear Log',
                         noRequests: 'No requests yet',
                         requestsWillAppear: 'Requests will appear here as they come in',
+                        serverStats: 'Server Statistics',
+                        cacheStatus: 'Cache Status',
+                        systemInfo: 'System Information',
+                        requestLimits: 'Request Limits',
+                        runtime: 'Runtime',
+                        totalRequests: 'Total Requests',
+                        activeRequests: 'Active Requests',
+                        errorCount: 'Error Count',
+                        avgResponseTime: 'Avg Response Time',
+                        enabled: 'Enabled',
+                        size: 'Size',
+                        hitRate: 'Hit Rate',
+                        hits: 'Hits',
+                        misses: 'Misses',
+                        cpuUsage: 'CPU Usage',
+                        memoryUsage: 'Memory Usage',
+                        diskUsage: 'Disk Usage',
+                        pythonVersion: 'Python Version',
+                        timeWindow: 'Time Window',
+                        maxRequests: 'Max Requests',
+                        blocked: 'Blocked',
                         requestDetails: 'Request Details',
                         processing: 'Request is being processed...',
                         responseTime: 'Response Time',
@@ -1648,89 +1817,89 @@ class MonitorSystem:
                 <div id="status" class="content">
                     <div class="grid">
                         <div class="card">
-                            <h2><i class="fas fa-server"></i> 服务器统计</h2>
+                            <h2><i class="fas fa-server"></i> <span data-i18n="serverStats">服务器统计</span></h2>
                             <div class="stat">
-                                <span class="label">运行时间:</span>
+                                <span class="label" data-i18n="runtime">运行时间:</span>
                                 <span class="value" data-stat="uptime">{stats['uptime_formatted']}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">总请求数:</span>
+                                <span class="label" data-i18n="totalRequests">总请求数:</span>
                                 <span class="value" data-stat="total_requests">{stats['total_requests']}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">活跃请求:</span>
+                                <span class="label" data-i18n="activeRequests">活跃请求:</span>
                                 <span class="value" data-stat="active_requests">{stats['active_requests']}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">错误数:</span>
+                                <span class="label" data-i18n="errorCount">错误数:</span>
                                 <span class="value error" data-stat="total_errors">{stats['total_errors']}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">平均响应时间:</span>
+                                <span class="label" data-i18n="avgResponseTime">平均响应时间:</span>
                                 <span class="value" data-stat="avg_response_time">{stats['avg_response_time_formatted']}</span>
                             </div>
                         </div>
                         
                         <div class="card">
-                            <h2><i class="fas fa-memory"></i> 缓存状态</h2>
+                            <h2><i class="fas fa-memory"></i> <span data-i18n="cacheStatus">缓存状态</span></h2>
                             <div class="stat">
-                                <span class="label">已启用:</span>
+                                <span class="label" data-i18n="enabled">已启用:</span>
                                 <span class="value">{cache_info.get('enabled', False)}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">大小:</span>
+                                <span class="label" data-i18n="size">大小:</span>
                                 <span class="value">{cache_info.get('size', 0)}/{cache_info.get('max_size', 0)}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">命中率:</span>
+                                <span class="label" data-i18n="hitRate">命中率:</span>
                                 <span class="value success" data-stat="cache_hit_rate">{stats['cache_hit_rate']}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">命中:</span>
+                                <span class="label" data-i18n="hits">命中:</span>
                                 <span class="value success" data-stat="cache_hits">{stats['cache_hits']}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">未命中:</span>
+                                <span class="label" data-i18n="misses">未命中:</span>
                                 <span class="value warning" data-stat="cache_misses">{stats['cache_misses']}</span>
                             </div>
                         </div>
                         
                         <div class="card">
-                            <h2><i class="fas fa-desktop"></i> 系统信息</h2>
+                            <h2><i class="fas fa-desktop"></i> <span data-i18n="systemInfo">系统信息</span></h2>
                             <div class="stat">
-                                <span class="label">CPU使用率:</span>
+                                <span class="label" data-i18n="cpuUsage">CPU使用率:</span>
                                 <span class="value" data-stat="cpu_usage">{system_info.get('cpu', {}).get('usage', 'N/A')}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">内存使用率:</span>
+                                <span class="label" data-i18n="memoryUsage">内存使用率:</span>
                                 <span class="value" data-stat="memory_percent">{system_info.get('memory', {}).get('percent', 'N/A')}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">磁盘使用率:</span>
+                                <span class="label" data-i18n="diskUsage">磁盘使用率:</span>
                                 <span class="value" data-stat="disk_percent">{system_info.get('disk', {}).get('percent', 'N/A')}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">Python版本:</span>
+                                <span class="label" data-i18n="pythonVersion">Python版本:</span>
                                 <span class="value">{system_info.get('python_version', 'N/A')}</span>
                             </div>
                         </div>
                         
                         <div class="card">
-                            <h2><i class="fas fa-shield-alt"></i> 请求限制</h2>
+                            <h2><i class="fas fa-shield-alt"></i> <span data-i18n="requestLimits">请求限制</span></h2>
                             <div class="stat">
-                                <span class="label">已启用:</span>
+                                <span class="label" data-i18n="enabled">已启用:</span>
                                 <span class="value">{ratelimit_info.get('enabled', False)}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">时间窗口:</span>
+                                <span class="label" data-i18n="timeWindow">时间窗口:</span>
                                 <span class="value">{ratelimit_info.get('window', 60)}s</span>
                             </div>
                             <div class="stat">
-                                <span class="label">最大请求数:</span>
+                                <span class="label" data-i18n="maxRequests">最大请求数:</span>
                                 <span class="value">{ratelimit_info.get('max_requests', 100)}</span>
                             </div>
                             <div class="stat">
-                                <span class="label">被阻止:</span>
+                                <span class="label" data-i18n="blocked">被阻止:</span>
                                 <span class="value error" data-stat="ratelimit_hits">{stats['ratelimit_hits']}</span>
                             </div>
                         </div>

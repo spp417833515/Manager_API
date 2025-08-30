@@ -129,12 +129,12 @@ class FastAPIServer:
         self._request_handler.set_callback(func)
         logger.info("Callback function set")
     
-    def start(self, block: bool = True) -> bool:
+    def start(self, block: bool = False) -> bool:
         """
         启动服务器
         
         参数:
-            block: 是否阻塞运行（默认True）
+            block: 是否阻塞运行（默认False，非阻塞）
         返回:
             bool: 启动是否成功
         """
