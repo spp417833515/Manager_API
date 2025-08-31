@@ -35,15 +35,15 @@ Manager_API - 高性能简洁API服务器框架
     server.start()
 """
 
+from .__version__ import __version__, __title__, __description__, __author__
 from .server import FastAPIServer
 from .types import CallbackData, ResponseData
 from .response import ResponseHandler
 
-__version__ = "3.1.0"
-__author__ = "Manager API Team"
 __all__ = [
     "FastAPIServer",
     "CallbackData", 
     "ResponseData",
-    "ResponseHandler"
+    "ResponseHandler",
+    "__version__"
 ]

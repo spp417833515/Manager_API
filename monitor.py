@@ -35,7 +35,7 @@ class MonitorSystem:
         self.stats = ServerStats()
         self.error_log = deque(maxlen=100)  # 最近的错误日志
         self.request_log = deque(maxlen=500)  # 最近的请求日志
-        self.max_request_body_log_size = 1000  # 请求体最大记录大小
+        self.max_request_body_log_size = 10000  # 请求体最大记录大小（增大以显示完整数据）
         self.debug_mode = False  # DEBUG模式标志
     
     def set_debug_mode(self, enabled: bool):
@@ -44,6 +44,26 @@ class MonitorSystem:
         if enabled:
             logger.info("监控系统DEBUG模式已启用")
     
+    def _should_ignore_request(self, path: str) -> bool:
+        """判断是否应该忽略该请求"""
+        ignore_patterns = [
+            # Chrome DevTools requests
+            "/.well-known/appspecific/com.chrome.devtools.json",
+            # Other common browser/tool requests
+            "/favicon.ico",
+            "/_debug",
+            "/_health", 
+            "/_routes",
+            "/_metrics",
+            # Add more patterns as needed
+        ]
+        
+        for pattern in ignore_patterns:
+            if path.startswith(pattern) or path == pattern:
+                return True
+        
+        return False
+    
     def record_request_details(self, method: str, path: str, 
                               params: dict = None, query: dict = None, 
                               body: Any = None, headers: dict = None,
@@ -51,27 +71,33 @@ class MonitorSystem:
         """记录请求详情（仅在DEBUG模式下）"""
         if not self.debug_mode:
             return
+        
+        # 过滤掉不需要记录的请求
+        if self._should_ignore_request(path):
+            return
             
         # 准备请求体日志
         body_log = None
         if body:
             try:
                 if isinstance(body, (dict, list)):
-                    body_str = json.dumps(body, ensure_ascii=False)
+                    body_str = json.dumps(body, ensure_ascii=False, indent=2)
                 else:
                     body_str = str(body)
                 
-                # 截断过长的请求体
-                if len(body_str) > self.max_request_body_log_size:
-                    body_log = body_str[:self.max_request_body_log_size] + "..."
-                else:
-                    body_log = body_str
+                # 不再截断请求体，保持完整数据
+                body_log = body_str
             except:
                 body_log = "<无法序列化>"
         
+        # 生成唯一的请求ID
+        import random
+        unique_id = f"req_{int(time.time()*1000000)}_{random.randint(1000000, 9999999)}_{hash(f'{method}{path}{time.time()}')}"
+        logger.debug(f"[Monitor] Creating request with ID: {unique_id} for {method} {path}")
+        
         # 记录请求
         request_entry = {
-            'id': f"req_{int(time.time()*1000000)}",
+            'id': unique_id,
             'timestamp': time.time(),
             'datetime': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'method': method,
@@ -89,8 +115,8 @@ class MonitorSystem:
         }
         
         self.request_log.append(request_entry)
-        logger.debug(f"Recorded new request {request_entry['id']}: {method} {path}")
-        return request_entry['id']
+        logger.debug(f"[Monitor] Recorded new request {unique_id}: {method} {path}")
+        return unique_id  # 确保返回请求ID
     
     def update_request_response(self, request_id: str, status_code: int, 
                                response_data: Any = None, duration: float = None):
@@ -110,19 +136,21 @@ class MonitorSystem:
                 req['completed_at'] = time.time()  # 添加完成时间戳
                 
                 # 记录响应数据
-                if response_data:
+                if response_data is not None:  # 更改判断条件，允许空字符串等
                     try:
                         if isinstance(response_data, (dict, list)):
-                            resp_str = json.dumps(response_data, ensure_ascii=False)
+                            resp_str = json.dumps(response_data, ensure_ascii=False, indent=2)
                         else:
                             resp_str = str(response_data)
                         
-                        if len(resp_str) > self.max_request_body_log_size:
-                            req['response_data'] = resp_str[:self.max_request_body_log_size] + "..."
-                        else:
-                            req['response_data'] = resp_str
-                    except:
+                        # 不再截断响应数据，保持完整数据
+                        req['response_data'] = resp_str
+                        logger.debug(f"[Monitor] Set response_data for {request_id}, data length: {len(resp_str)}")
+                    except Exception as e:
                         req['response_data'] = "<无法序列化>"
+                        logger.error(f"[Monitor] Failed to serialize response: {e}")
+                else:
+                    logger.debug(f"[Monitor] No response_data provided for {request_id}")
                 
                 found = True
                 logger.debug(f"Successfully updated request {request_id}")
@@ -1105,6 +1133,30 @@ class MonitorSystem:
                     color: #ffa198;
                 }}
                 
+                body.dark pre {{
+                    background: #21262d !important;
+                    color: #c9d1d9 !important;
+                    border: 1px solid #30363d;
+                }}
+                
+                body.dark .modal-content pre {{
+                    background: #161b22 !important;
+                    color: #c9d1d9 !important;
+                    border: 1px solid #30363d;
+                    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+                }}
+                
+                /* Fix for modal body response section background in dark mode */
+                body.dark .modal-response-section {{
+                    background: linear-gradient(135deg, #1a2332 0%, #243447 100%) !important;
+                }}
+                
+                body.dark .modal-response-section pre {{
+                    background: #0d1117 !important;
+                    color: #c9d1d9 !important;
+                    border: 1px solid #30363d;
+                }}
+                
                 body.dark .empty-state {{
                     color: var(--text-muted);
                 }}
@@ -1332,13 +1384,36 @@ class MonitorSystem:
                     }});
                 }}
                 
-                function setTab(tabName) {{
-                    localStorage.setItem('currentTab', tabName);
-                    switchTab(tabName);
-                }}
+                // Removed duplicate - see enhanced setTab function below
                 
                 // Request details
-                const requestsData = {json.dumps([req for req in requests], ensure_ascii=False) if requests else '[]'};
+                const requestsData = {json.dumps([req for req in requests], ensure_ascii=False, indent=2) if requests else '[]'};
+                
+                // Format JSON response data for better readability
+                function formatJsonResponse(data) {{
+                    if (!data) return '';
+                    
+                    try {{
+                        // Try to parse as JSON first
+                        const parsed = JSON.parse(data);
+                        return JSON.stringify(parsed, null, 2);
+                    }} catch (e) {{
+                        // If not valid JSON, try to detect if it looks like JSON and format it
+                        const trimmed = data.trim();
+                        if ((trimmed.startsWith('{{') && trimmed.endsWith('}}')) || 
+                            (trimmed.startsWith('[') && trimmed.endsWith(']'))) {{
+                            try {{
+                                const parsed = JSON.parse(trimmed);
+                                return JSON.stringify(parsed, null, 2);
+                            }} catch (e2) {{
+                                // Still not valid JSON, return as is
+                                return data;
+                            }}
+                        }}
+                        // Return original data if not JSON-like
+                        return data;
+                    }}
+                }}
                 
                 function showRequestDetail(requestId) {{
                     const request = requestsData.find(r => r.id === requestId);
@@ -1380,7 +1455,7 @@ class MonitorSystem:
                                 <h4 style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                     <i class="fas fa-route"></i> 路径参数
                                 </h4>
-                                <pre style="background: var(--bg-light); padding: 15px; border-radius: 8px; overflow-x: auto;">${{JSON.stringify(request.params, null, 2)}}</pre>
+                                <pre style="background: var(--bg-light); color: var(--text-primary); padding: 15px; border-radius: 8px; overflow-x: auto; font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 0.9rem; line-height: 1.4; border: 1px solid var(--text-muted); white-space: pre-wrap; word-wrap: break-word;">${{JSON.stringify(request.params, null, 2)}}</pre>
                             </div>` : ''}}
                         
                         ${{Object.keys(request.query || {{}}).length > 0 ? 
@@ -1388,7 +1463,7 @@ class MonitorSystem:
                                 <h4 style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                     <i class="fas fa-search"></i> 查询参数
                                 </h4>
-                                <pre style="background: var(--bg-light); padding: 15px; border-radius: 8px; overflow-x: auto;">${{JSON.stringify(request.query, null, 2)}}</pre>
+                                <pre style="background: var(--bg-light); color: var(--text-primary); padding: 15px; border-radius: 8px; overflow-x: auto; font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 0.9rem; line-height: 1.4; border: 1px solid var(--text-muted); white-space: pre-wrap; word-wrap: break-word;">${{JSON.stringify(request.query, null, 2)}}</pre>
                             </div>` : ''}}
                         
                         ${{request.body ? 
@@ -1396,22 +1471,22 @@ class MonitorSystem:
                                 <h4 style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                     <i class="fas fa-file-code"></i> 请求体
                                 </h4>
-                                <pre style="background: var(--bg-light); padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto;">${{request.body}}</pre>
+                                <pre style="background: var(--bg-light); color: var(--text-primary); padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto; font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 0.9rem; line-height: 1.4; border: 1px solid var(--text-muted); white-space: pre-wrap; word-wrap: break-word;">${{formatJsonResponse(request.body)}}</pre>
                             </div>` : ''}}
                         
                         ${{request.status === 'completed' || request.status === 'timeout' ? `
-                            <div style="background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%); padding: 20px; border-radius: 12px;">
-                                <h4 style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            <div class="modal-response-section" style="background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%); padding: 20px; border-radius: 12px;">
+                                <h4 style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text-primary);">
                                     <i class="fas fa-reply"></i> 响应信息
                                 </h4>
                                 <div style="display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap;">
-                                    <div>状态: <span class="${{statusClass}}" style="font-weight: 700;">${{request.response_status}}</span></div>
-                                    <div>时间: <strong>${{(request.response_time * 1000).toFixed(2)}}ms</strong></div>
+                                    <div style="color: var(--text-primary);">状态: <span class="${{statusClass}}" style="font-weight: 700;">${{request.response_status}}</span></div>
+                                    <div style="color: var(--text-primary);">时间: <strong>${{(request.response_time * 1000).toFixed(2)}}ms</strong></div>
                                 </div>
                                 ${{request.response_data ? 
                                     `<div>
-                                        <strong>响应数据:</strong>
-                                        <pre style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px; max-height: 300px; overflow-y: auto;">${{request.response_data}}</pre>
+                                        <strong style="color: var(--text-primary);">响应数据:</strong>
+                                        <pre style="background: var(--bg-white); color: var(--text-primary); padding: 15px; border-radius: 8px; margin-top: 10px; max-height: 300px; overflow-y: auto; font-family: 'Monaco', 'Menlo', 'Consolas', monospace; font-size: 0.9rem; line-height: 1.4; border: 1px solid var(--text-muted); white-space: pre-wrap; word-wrap: break-word;">${{formatJsonResponse(request.response_data)}}</pre>
                                     </div>` : ''}}
                             </div>
                         ` : `
@@ -1670,12 +1745,82 @@ class MonitorSystem:
                     }}, 3000);
                 }}
                 
-                // 启动定时更新（每3秒）
-                setInterval(() => {{
+                // 智能轮询：根据活动情况调整频率
+                let pollInterval = null;
+                let consecutiveEmptyUpdates = 0;
+                let currentPollDelay = 5000; // 开始5秒间隔
+                const maxPollDelay = 30000; // 最大30秒间隔
+                const minPollDelay = 3000; // 最小3秒间隔
+                
+                function startSmartPolling() {{
+                    if (pollInterval) clearInterval(pollInterval);
+                    
+                    pollInterval = setInterval(async () => {{
+                        // 仅在页面可见且在监控标签时才轮询
+                        if (document.visibilityState === 'visible' && 
+                            document.querySelector('.tab[data-tab="monitor"]').classList.contains('active')) {{
+                            
+                            const previousRequestCount = requestsData.length;
+                            await updateMonitorData();
+                            const currentRequestCount = requestsData.length;
+                            
+                            // 如果有新请求，减少轮询间隔
+                            if (currentRequestCount > previousRequestCount) {{
+                                consecutiveEmptyUpdates = 0;
+                                currentPollDelay = Math.max(minPollDelay, currentPollDelay * 0.8);
+                            }} else {{
+                                // 没有新请求，增加轮询间隔
+                                consecutiveEmptyUpdates++;
+                                if (consecutiveEmptyUpdates >= 3) {{
+                                    currentPollDelay = Math.min(maxPollDelay, currentPollDelay * 1.5);
+                                }}
+                            }}
+                            
+                            // 重新设置间隔
+                            if (pollInterval) {{
+                                clearInterval(pollInterval);
+                                startSmartPolling();
+                            }}
+                        }}
+                    }}, currentPollDelay);
+                }}
+                
+                // 页面可见性变化时调整轮询
+                document.addEventListener('visibilitychange', () => {{
                     if (document.visibilityState === 'visible') {{
-                        updateMonitorData();
+                        consecutiveEmptyUpdates = 0;
+                        currentPollDelay = minPollDelay;
+                        startSmartPolling();
+                    }} else {{
+                        if (pollInterval) {{
+                            clearInterval(pollInterval);
+                            pollInterval = null;
+                        }}
                     }}
-                }}, 3000);
+                }});
+                
+                // 标签切换时调整轮询
+                function setTab(tabName) {{
+                    localStorage.setItem('currentTab', tabName);
+                    switchTab(tabName);
+                    
+                    // 只在监控标签时启用轮询
+                    if (tabName === 'monitor') {{
+                        if (!pollInterval && document.visibilityState === 'visible') {{
+                            consecutiveEmptyUpdates = 0;
+                            currentPollDelay = minPollDelay;
+                            startSmartPolling();
+                        }}
+                    }} else {{
+                        if (pollInterval) {{
+                            clearInterval(pollInterval);
+                            pollInterval = null;
+                        }}
+                    }}
+                }}
+                
+                // 启动智能轮询
+                startSmartPolling();
                 
                 // 页面加载完成后立即更新一次数据
                 window.addEventListener('load', () => {{
@@ -1697,7 +1842,7 @@ class MonitorSystem:
                             <span data-i18n="debugMode">调试模式</span>
                         </span>
                         <button class="theme-toggle" onclick="toggleLanguage()" title="Switch Language" style="background: var(--accent-primary); color: white;">
-                            <i class="fas fa-language"></i>
+                            <i class="fas fa-globe"></i>
                         </button>
                         <button class="theme-toggle" onclick="toggleTheme()" data-i18n-title="theme">
                             <i class="fas fa-moon"></i>
@@ -1735,7 +1880,7 @@ class MonitorSystem:
                                     onmouseover="this.style.transform='translateY(-2px) scale(1.05)'"
                                     onmouseout="this.style.transform='none'">
                                 <i class="fas fa-trash"></i>
-                                清空日志
+                                <span data-i18n="clearLog">清空日志</span>
                             </button>
                         </div>
                         <div class="bubble-container">

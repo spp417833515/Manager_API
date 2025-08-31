@@ -10,6 +10,7 @@ from fastapi import Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .utils import match_cors_origin, get_client_ip
+from .response import FormattedJSONResponse
 import time
 import logging
 
@@ -120,8 +121,7 @@ class RequestSizeMiddleware(BaseHTTPMiddleware):
             try:
                 size = int(content_length)
                 if size > self.max_size:
-                    from fastapi.responses import JSONResponse
-                    return JSONResponse(
+                    return FormattedJSONResponse(
                         content={
                             "error": "Request Entity Too Large",
                             "message": f"Request size {size} exceeds maximum allowed size {self.max_size}"

@@ -8,6 +8,7 @@ FastAPI服务器的核心实现
 import uvicorn
 import logging
 import time
+import json
 from typing import Optional, Dict, Any
 from threading import Thread
 from fastapi import FastAPI, Request
@@ -271,7 +272,7 @@ class FastAPIServer:
             method = request.method
             request_path = path or request.url.path
             
-            # 记录请求
+            # 记录请求（性能优化：基础统计始终记录，但仅在有监控系统时）
             if self._monitor_system:
                 self._monitor_system.record_request()
                 
@@ -304,8 +305,8 @@ class FastAPIServer:
                 route_info, path_params = self._router_registry.find_route(method, request_path)
                 
                 if not route_info:
-                    # 路由不存在 - 更新请求状态
-                    if request_id and self._monitor_system:
+                    # 路由不存在 - 更新请求状态（仅在DEBUG模式下）
+                    if request_id and self._monitor_system and self.debug:
                         duration = time.time() - start_time
                         self._monitor_system.update_request_response(
                             request_id=request_id,
@@ -323,8 +324,8 @@ class FastAPIServer:
                     ):
                         if self._monitor_system:
                             self._monitor_system.record_ratelimit_hit()
-                            # 更新请求状态为限流
-                            if request_id:
+                            # 更新请求状态为限流（仅在DEBUG模式下）
+                            if request_id and self.debug:
                                 duration = time.time() - start_time
                                 self._monitor_system.update_request_response(
                                     request_id=request_id,
@@ -338,8 +339,8 @@ class FastAPIServer:
                 if self._concurrent_manager:
                     acquired = await self._concurrent_manager.acquire(timeout=5)
                     if not acquired:
-                        # 更新请求状态为服务不可用
-                        if request_id and self._monitor_system:
+                        # 更新请求状态为服务不可用（仅在DEBUG模式下）
+                        if request_id and self._monitor_system and self.debug:
                             duration = time.time() - start_time
                             self._monitor_system.update_request_response(
                                 request_id=request_id,
@@ -361,21 +362,35 @@ class FastAPIServer:
                         if cached_response:
                             if self._monitor_system:
                                 self._monitor_system.record_cache_hit()
-                                # 更新请求状态为缓存命中
-                                if request_id:
+                                # 更新请求状态为缓存命中（仅在DEBUG模式下）
+                                if request_id and self.debug:
                                     duration = time.time() - start_time
+                                    # 尝试从缓存响应中提取数据
+                                    cached_data = None
+                                    try:
+                                        if hasattr(cached_response, 'content'):
+                                            cached_data = cached_response.content
+                                        elif hasattr(cached_response, 'body') and cached_response.body:
+                                            if isinstance(cached_response.body, bytes):
+                                                cached_data = json.loads(cached_response.body.decode('utf-8'))
+                                            else:
+                                                cached_data = cached_response.body
+                                    except Exception as e:
+                                        logger.debug(f"Could not extract cached response data: {e}")
+                                        cached_data = "<Cached Response>"
+                                    
                                     self._monitor_system.update_request_response(
                                         request_id=request_id,
                                         status_code=cached_response.status_code,
-                                        response_data=None,  # 不记录缓存响应数据以节省空间
+                                        response_data=cached_data,
                                         duration=duration
                                     )
                             return cached_response
                         elif self._monitor_system:
                             self._monitor_system.record_cache_miss()
                     
-                    # 更新请求的路径参数（DEBUG模式）
-                    if request_id and self._monitor_system:
+                    # 更新请求的路径参数（仅在DEBUG模式下）
+                    if request_id and self._monitor_system and self.debug:
                         for req in self._monitor_system.request_log:
                             if req.get('id') == request_id:
                                 req['params'] = path_params
@@ -387,24 +402,51 @@ class FastAPIServer:
                         route_info.__dict__, path_params
                     )
                     
-                    # 记录响应（DEBUG模式）
-                    if request_id and self._monitor_system:
+                    # 记录响应（仅在DEBUG模式下记录详细信息）
+                    if request_id and self._monitor_system and self.debug:
                         duration = time.time() - start_time
                         # 获取响应数据
                         response_data = None
-                        if hasattr(response, 'body'):
-                            try:
-                                import json
-                                response_data = json.loads(response.body)
-                            except:
-                                response_data = str(response.body)
+                        try:
+                            # 检查响应类型并提取内容
+                            if hasattr(response, '__class__') and response.__class__.__name__ == 'FormattedJSONResponse':
+                                # FormattedJSONResponse 包含content属性
+                                if hasattr(response, 'content'):
+                                    response_data = response.content
+                                    logger.debug(f"Extracted data from FormattedJSONResponse.content: {type(response_data)}")
+                                else:
+                                    # 如果没有content属性，尝试渲染获取内容
+                                    rendered_body = response.render(response.body if hasattr(response, 'body') else {})
+                                    if isinstance(rendered_body, bytes):
+                                        response_data = json.loads(rendered_body.decode('utf-8'))
+                                        logger.debug(f"Rendered and parsed FormattedJSONResponse")
+                            elif hasattr(response, 'body'):
+                                # 对于其他响应类型，尝试从body获取
+                                body = response.body
+                                if isinstance(body, bytes):
+                                    try:
+                                        response_data = json.loads(body.decode('utf-8'))
+                                        logger.debug(f"Parsed JSON from response body")
+                                    except:
+                                        response_data = body.decode('utf-8', errors='ignore')
+                                        logger.debug(f"Decoded string from response body")
+                                elif body is not None:
+                                    response_data = body
+                                    logger.debug(f"Got raw body data: {type(body)}")
+                            else:
+                                logger.debug(f"Response type {type(response)} has no accessible content")
+                        except Exception as e:
+                            logger.error(f"Failed to extract response data: {e}")
+                            response_data = {"error": f"Failed to extract: {str(e)}"}
                         
+                        logger.debug(f"Updating response for request_id: {request_id}, status: {response.status_code}, has_data: {response_data is not None}")
                         self._monitor_system.update_request_response(
                             request_id=request_id,
                             status_code=response.status_code,
                             response_data=response_data,
                             duration=duration
                         )
+                        logger.debug(f"Response update completed for {request_id}")
                     
                     # 缓存响应
                     if cache_key and response.status_code == 200:
@@ -420,8 +462,8 @@ class FastAPIServer:
                 logger.error(f"Error handling request: {e}")
                 if self._monitor_system:
                     self._monitor_system.record_error(e, request_path, method)
-                    # 更新请求状态为错误（DEBUG模式）
-                    if request_id:
+                    # 更新请求状态为错误（仅在DEBUG模式下）
+                    if request_id and self.debug:
                         duration = time.time() - start_time
                         self._monitor_system.update_request_response(
                             request_id=request_id,
@@ -548,6 +590,15 @@ class FastAPIServer:
                 metrics["routes"] = self._router_registry.get_route_stats()
                 
                 return metrics
+        
+        # Favicon.ico 路由 - 防止404错误
+        @self._app.get("/favicon.ico")
+        async def favicon():
+            """返回默认的 favicon，避免浏览器请求时出现404错误"""
+            from fastapi.responses import Response
+            # 返回一个简单的透明1x1像素的ICO格式图标
+            favicon_data = b'\x00\x00\x01\x00\x01\x00\x01\x01\x00\x00\x01\x00\x18\x00(\x00\x00\x00\x16\x00\x00\x00(\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x01\x00\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00\x00'
+            return Response(content=favicon_data, media_type="image/x-icon", headers={"Cache-Control": "public, max-age=86400"})
         
         # 监控数据API（用于动态更新）
         if self.enable_monitor and self._monitor_system:

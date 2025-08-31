@@ -15,6 +15,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class FormattedJSONResponse(JSONResponse):
+    """Custom JSONResponse that formats JSON with proper indentation"""
+    
+    def __init__(self, content: Any, **kwargs):
+        """Initialize and store original content for monitoring access"""
+        super().__init__(content, **kwargs)
+        # Store the original content for monitoring systems to access
+        self._original_content = content
+    
+    @property
+    def content(self) -> Any:
+        """Access the original content before rendering"""
+        return self._original_content
+    
+    def render(self, content: Any) -> bytes:
+        """Override render to format JSON with indentation"""
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=2,
+            separators=(',', ': ')
+        ).encode("utf-8")
+
+
 class ResponseHandler:
     """响应处理器"""
     
@@ -52,19 +77,19 @@ class ResponseHandler:
                 return ResponseHandler._create_response_from_dict(data)
             
             # 普通字典，直接返回JSON
-            return JSONResponse(content=data)
+            return FormattedJSONResponse(content=data)
         
         # 列表 -> JSON响应
         if isinstance(data, (list, tuple)):
-            return JSONResponse(content=data)
+            return FormattedJSONResponse(content=data)
         
         # 其他类型，尝试转换为JSON
         try:
-            json_data = json.dumps(data, default=str)
-            return JSONResponse(content=json.loads(json_data))
+            json_data = json.dumps(data, default=str, indent=2)
+            return FormattedJSONResponse(content=json.loads(json_data))
         except Exception as e:
             logger.error(f"Failed to serialize response: {e}")
-            return JSONResponse(
+            return FormattedJSONResponse(
                 content={"error": "Internal server error"},
                 status_code=500
             )
@@ -94,7 +119,7 @@ class ResponseHandler:
                             headers: Dict[str, str] = None, 
                             cookies: Dict[str, str] = None) -> Response:
         """创建JSON响应的通用方法"""
-        response = JSONResponse(content=content, status_code=status_code)
+        response = FormattedJSONResponse(content=content, status_code=status_code)
         
         # 添加headers
         if headers:

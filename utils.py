@@ -138,7 +138,7 @@ def safe_json_dumps(obj: Any) -> str:
         else:
             return str(o)
     
-    return json.dumps(obj, default=default, ensure_ascii=False)
+    return json.dumps(obj, default=default, ensure_ascii=False, indent=2)
 
 
 def async_to_sync(func):
